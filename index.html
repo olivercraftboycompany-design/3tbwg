@@ -195,5 +195,119 @@ document.addEventListener('input', e => {
   if (e.target.id === 'ms2') $('#mres').innerHTML = selRows(e.target.value.toLowerCase().trim());
 });
   </script>
+  <script>
+/* ---------- Synced lyrics (LRCLIB) ---------- */
+const lyrStyle = document.createElement('style');
+lyrStyle.textContent = `
+#lt.sy{padding:25vh 0}
+#lt .ll{display:block;padding:5px 0;opacity:.35;cursor:pointer;transform-origin:left center;transition:opacity .25s,transform .25s,color .25s}
+#lt .ll:hover{opacity:.7}
+#lt .ll.on{opacity:1;color:var(--acc);transform:scale(1.04)}
+`;
+document.head.appendChild(lyrStyle);
+
+const lyrTried = new Set();
+let lines = [], active = -1, holdUntil = 0;
+
+function parseLrc(t) {
+  const out = [];
+  t.split(/\r?\n/).forEach(line => {
+    const ts = [...line.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    if (!ts.length) return;
+    const x = line.replace(/\[[^\]]*\]/g, '').trim();
+    ts.forEach(m => out.push({ t: +m[1] * 60 + +m[2], x }));
+  });
+  return out.sort((a, b) => a.t - b.t);
+}
+
+async function fetchLyrics(s) {
+  const artist = s.artist.split(/\s*[;\/]\s*/)[0];
+  const p = new URLSearchParams({ track_name: s.title, artist_name: artist });
+  if (s.album && s.album !== 'Unknown Album') p.set('album_name', s.album);
+  if (s.dur) p.set('duration', Math.round(s.dur));
+  try {
+    let r = await fetch('https://lrclib.net/api/get?' + p);
+    let d = r.ok ? await r.json() : null;
+    if (!d || !d.syncedLyrics) {
+      r = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(s.title + ' ' + artist));
+      const arr = r.ok ? await r.json() : [];
+      d = arr.find(x => x.syncedLyrics) || d || arr[0] || null;
+    }
+    if (!d) return {};
+    return {
+      synced: d.syncedLyrics || '',
+      plain: (d.plainLyrics || (d.syncedLyrics || '').replace(/^\[[^\]]*\]\s?/gm, '')).trim()
+    };
+  } catch { return { failed: true }; }
+}
+
+function showLyrics(s, msg) {
+  const lt = $('#lt');
+  lines = s && s.synced ? parseLrc(s.synced) : [];
+  active = -1;
+  lt.classList.toggle('sy', lines.length > 0);
+  if (lines.length) {
+    lt.innerHTML = lines.map((l, i) => `<span class="ll" data-i="${i}">${esc(l.x) || '&#9834;'}</span>`).join('');
+    syncLyrics(true);
+  } else {
+    lt.textContent = s ? (s.lyrics || msg || 'No lyrics found for this song.') : '';
+  }
+}
+
+function centerLine(el, instant) {
+  const c = $('#lyr');
+  const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - c.clientHeight / 2 + el.offsetHeight / 2;
+  c.scrollTo({ top, behavior: instant ? 'auto' : 'smooth' });
+}
+
+function syncLyrics(jump) {
+  if (!lines.length) return;
+  const t = au.currentTime + 0.15;
+  let i = -1;
+  for (let k = 0; k < lines.length && lines[k].t <= t; k++) i = k;
+  if (i === active && !jump) return;
+  const els = $('#lt').children;
+  els[active]?.classList.remove('on');
+  active = i;
+  const el = els[i];
+  if (!el) return;
+  el.classList.add('on');
+  const open = $('#big').classList.contains('lyr');
+  if (jump ? open : (open && Date.now() > holdUntil)) centerLine(el, jump);
+}
+
+/* hook into the player */
+const _ui = ui;
+ui = function () {
+  _ui();
+  const s = cur;
+  showLyrics(s);
+  if (!s || s.synced || s.syncTried || lyrTried.has(s.id)) return;
+  lyrTried.add(s.id);
+  if (!s.lyrics) $('#lt').textContent = 'Searching for lyrics...';
+  fetchLyrics(s).then(r => {
+    if (r.synced) s.synced = r.synced;
+    if (!s.lyrics && r.plain) s.lyrics = r.plain;
+    if (!r.failed) s.syncTried = true;     // network error = try again next time
+    put('songs', s);                        // cache in IndexedDB
+    if (cur && cur.id === s.id) showLyrics(s);
+  });
+};
+
+au.addEventListener('timeupdate', () => syncLyrics());
+au.addEventListener('seeked', () => syncLyrics());
+
+/* snap to the current line when the lyrics panel opens */
+const _lyr = A.lyr;
+A.lyr = (...a) => { _lyr(...a); requestAnimationFrame(() => syncLyrics(true)); };
+
+/* tap a line to seek; manual scrolling pauses auto-scroll for 3s */
+document.addEventListener('click', e => {
+  const l = e.target.closest('#lt .ll');
+  if (l && lines[+l.dataset.i]) { au.currentTime = lines[+l.dataset.i].t; syncLyrics(); }
+});
+['wheel', 'touchmove'].forEach(ev =>
+  $('#lyr').addEventListener(ev, () => { holdUntil = Date.now() + 3000; }, { passive: true }));
+  </script>
 </body>
 </html>
