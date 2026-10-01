@@ -128,24 +128,67 @@ async function outLabel() {
   document.querySelectorAll('.out').forEach(e => e.textContent = S.showOut ? 'Playing on: ' + n : '');
 }
 function start() { initAudio(); ctx.resume(); au.play().catch(() => { }); }
+let back = [], fwd = [], nav = '', navAt = 0;
+
 function load(i, play = true) {
   const s = byId(queue[i]);
   if (!s) return;
+  if (cur && cur.id !== s.id) {          // remember where we came from
+    if (nav === 'back') fwd.push(cur.id);
+    else { back.push(cur.id); if (back.length > 200) back.shift(); if (nav !== 'fwd') fwd.length = 0; }
+  }
   qi = i; cur = s;
-  if (url) URL.revokeObjectURL(url);
+  const old = url;
   url = URL.createObjectURL(s.blob);
   au.src = url;
+  if (old) URL.revokeObjectURL(old);     // revoke AFTER the new source is attached
   if (play) { hist = [s.id, ...hist.filter(x => x !== s.id)].slice(0, 100); save('hist', hist); start(); }
   ui();
 }
 const playList = (ids, id) => { if (!ids.length) return; queue = [...ids]; load(Math.max(0, queue.indexOf(id))); };
-const next = () => {
-  if (!queue.length) return;
-  let n = (qi + 1) % queue.length;
-  if (S.shuf && queue.length > 1) do n = Math.floor(Math.random() * queue.length); while (n === qi);
-  load(n);
+
+/* nearest queue position of a song (handles duplicates) */
+const idxOf = id => {
+  let b = -1;
+  queue.forEach((x, i) => { if (x === id && (b < 0 || Math.abs(i - qi) < Math.abs(b - qi))) b = i; });
+  return b;
 };
-const prev = () => { if (!queue.length) return; au.currentTime > 3 ? au.currentTime = 0 : load((qi - 1 + queue.length) % queue.length); };
+/* pop a history stack until we find a song that's still in the queue */
+const goTo = (stack, mode) => {
+  while (stack.length) {
+    const id = stack.pop(), j = idxOf(id);
+    if (j >= 0 && byId(id) && (!cur || id !== cur.id)) {
+      nav = mode;
+      try { load(j); } finally { nav = ''; }
+      return true;
+    }
+  }
+  return false;
+};
+const gate = () => { const t = Date.now(); if (t - navAt < 250) return false; navAt = t; return true; };
+
+/* shuffle that avoids recently played songs */
+const pickShuffle = () => {
+  const recent = new Set(back.slice(-Math.max(1, Math.floor(queue.length / 2))));
+  const all = queue.map((_, i) => i).filter(i => i !== qi);
+  const fresh = all.filter(i => !recent.has(queue[i]));
+  const pool = fresh.length ? fresh : all;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+const next = () => {
+  if (!queue.length || !gate()) return;
+  if (goTo(fwd, 'fwd')) return;                       // came back with Previous? go forward again
+  load(S.shuf && queue.length > 1 ? pickShuffle() : (qi + 1) % queue.length);
+};
+const prev = () => {
+  if (!queue.length) return;
+  if (au.currentTime > 3) { au.currentTime = 0; return; }   // restart first, like Spotify
+  if (!gate()) return;
+  if (goTo(back, 'back')) return;                     // the song you actually played before
+  if (!S.shuf) load((qi - 1 + queue.length) % queue.length);
+  else au.currentTime = 0;
+};
 function removeQ(i) {
   if (i < 0) return;
   queue.splice(i, 1);
