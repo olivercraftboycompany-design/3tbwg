@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>nortest</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg"><i></i><i></i><i></i></div>
+
+<div id="app">
+  <aside class="glass side">
+    <h1>nortest</h1>
+    <nav id="nav"></nav>
+  </aside>
+  <section class="main">
+    <header class="glass top">
+      <input id="search" type="search" placeholder="Search songs, artists, albums">
+      <button class="btn" data-a="upload">Upload songs</button>
+      <button class="btn" data-a="fs">Full screen</button>
+      <button class="btn" data-a="settings">Settings</button>
+    </header>
+    <main id="view"></main>
+  </section>
+</div>
+
+<div id="mini" class="glass">
+  <div id="mProg"><i></i></div>
+  <img id="mArt" data-a="open" alt="">
+  <div class="mi" data-a="open">
+    <b id="mT">Nothing playing</b>
+    <span id="mA"></span>
+    <em class="out"></em>
+  </div>
+  <div class="mc">
+    <button class="ib" data-a="prev" id="mp" aria-label="Previous"></button>
+    <button class="ib" data-a="toggle" id="mpl" aria-label="Play or pause"></button>
+    <button class="ib" data-a="next" id="mn" aria-label="Next"></button>
+  </div>
+</div>
+
+<div id="big">
+  <div class="bbg"></div>
+  <div class="bw glass">
+    <div class="bt hl">
+      <button class="btn" data-a="close">Close</button>
+      <em class="out"></em>
+      <button class="btn" data-a="side">Sideways mode</button>
+    </div>
+    <div class="bm">
+      <div class="artw"><img id="bArt" alt=""></div>
+      <div class="bc">
+        <div class="ti">
+          <div><h2 id="bT"></h2><p id="bA"></p><small id="bAl"></small></div>
+          <button class="ib hrt hl" data-a="fav" id="bH" aria-label="Favorite"></button>
+        </div>
+        <div class="hl">
+          <div class="pr"><span id="cur">0:00</span><input id="seek" type="range" min="0" max="100" step="0.1" value="0"><span id="dur">0:00</span></div>
+          <div class="tr">
+            <button class="btn" data-a="b10">-10s</button>
+            <button class="ib" data-a="prev" id="bp" aria-label="Previous"></button>
+            <button class="ib big" data-a="toggle" id="bpl" aria-label="Play or pause"></button>
+            <button class="ib" data-a="next" id="bn" aria-label="Next"></button>
+            <button class="btn" data-a="f10">+10s</button>
+          </div>
+          <div class="vr"><span>Volume</span><input id="vol" type="range" min="0" max="1" step="0.01" value="1"></div>
+          <div class="bb">
+            <button class="btn" data-a="shuf" id="bShuf">Shuffle</button>
+            <button class="btn" data-a="rep" id="bRep">Repeat: off</button>
+            <button class="btn" data-a="lyr">Lyrics</button>
+            <button class="btn" data-a="qp">Queue</button>
+          </div>
+        </div>
+        <div id="lyr"><button class="btn" data-a="lyrx">X</button><pre id="lt"></pre></div>
+      </div>
+    </div>
+  </div>
+  <div id="qp" class="glass"></div>
+</div>
+
+<div id="mod" class="hid"><div class="glass mb" id="mb"></div></div>
+<div id="menu" class="glass hid"></div>
+<input id="file" type="file" accept="audio/*" multiple hidden>
+<audio id="au" preload="metadata"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
