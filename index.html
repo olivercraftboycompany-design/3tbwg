@@ -87,5 +87,113 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 <script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<script src="app.js"></script>
+<script>
+/* ---------- Online lyrics (LRCLIB) ---------- */
+const lyrTried = new Set();
+const stripLrc = t => t.replace(/^\[[^\]]*\]\s?/gm, '').trim();
+
+async function fetchLyrics(s) {
+  const artist = s.artist.split(/\s*[;\/]\s*/)[0];
+  const p = new URLSearchParams({ track_name: s.title, artist_name: artist });
+  if (s.album && s.album !== 'Unknown Album') p.set('album_name', s.album);
+  if (s.dur) p.set('duration', Math.round(s.dur));
+  try {
+    let r = await fetch('https://lrclib.net/api/get?' + p);
+    let d = r.ok ? await r.json() : null;
+    if (!d) {
+      r = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(s.title + ' ' + artist));
+      d = r.ok ? (await r.json())[0] : null;
+    }
+    if (!d) return '';
+    return (d.plainLyrics || (d.syncedLyrics ? stripLrc(d.syncedLyrics) : '') || '').trim();
+  } catch { return ''; }
+}
+
+const _ui = ui;
+ui = function () {
+  _ui();
+  const s = cur;
+  if (!s || s.lyrics || lyrTried.has(s.id)) return;
+  lyrTried.add(s.id);
+  $('#lt').textContent = 'Searching for lyrics...';
+  fetchLyrics(s).then(txt => {
+    if (txt) { s.lyrics = txt; put('songs', s); }
+    if (cur && cur.id === s.id) $('#lt').textContent = txt || 'No lyrics found for this song.';
+  });
+};
+</script>
+  <script>
+/* ---------- Playlist: search + multi-select add ---------- */
+const pSelStyle = document.createElement('style');
+pSelStyle.textContent = `
+.mlist.sel{max-height:50vh;overflow:auto;margin:12px 0}
+.row.sel .ck{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:grid;place-items:center;flex:none;color:transparent;transition:.15s}
+.row.sel.on .ck{background:var(--acc);border-color:var(--acc);color:#000}
+.row.sel.on{background:rgba(255,255,255,.08)}
+.row.sel.dis{opacity:.55;cursor:default}
+.btn:disabled{opacity:.4;pointer-events:none}
+`;
+document.head.appendChild(pSelStyle);
+
+let pSel = new Set();
+const CK = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
+
+const selRows = q => {
+  const p = cp();
+  return songs.filter(s => match(s, q)).map(s => {
+    const inPl = p.songs.includes(s.id), on = inPl || pSel.has(s.id);
+    return `<div class="row sel ${on ? 'on' : ''} ${inPl ? 'dis' : ''}" data-a="psel" data-id="${s.id}">
+      <span class="ck">${CK}</span><img src="${cover(s)}" alt="">
+      <div class="rm"><div><b>${esc(s.title)}</b></div><span>${esc(s.artist)}</span></div>
+      ${inPl ? '<em class="dur">In playlist</em>' : ''}</div>`;
+  }).join('') || '<p style="opacity:.6;text-align:center">No songs found.</p>';
+};
+
+const selCount = () => {
+  const b = $('#pcommit'); if (!b) return;
+  b.textContent = pSel.size ? `Add ${pSel.size} song${pSel.size > 1 ? 's' : ''}` : 'Add songs';
+  b.disabled = !pSel.size;
+};
+
+Object.assign(A, {
+  padd: () => {
+    pSel = new Set();
+    mod(`<h3>Add songs</h3>
+      <input id="ms2" type="search" placeholder="Search songs, artists, albums">
+      <div id="mres" class="mlist sel">${selRows('')}</div>
+      <div class="mrow">
+        <button class="btn" data-a="mx">Cancel</button>
+        <button class="btn" data-a="psall">Select all shown</button>
+        <button class="btn pri" id="pcommit" data-a="pcommit" disabled>Add songs</button>
+      </div>`);
+    $('#ms2').focus();
+  },
+  psel: (b, id) => {
+    if (b.classList.contains('dis')) return;
+    pSel.has(id) ? pSel.delete(id) : pSel.add(id);
+    b.classList.toggle('on', pSel.has(id));
+    selCount();
+  },
+  psall: () => {
+    const shown = [...document.querySelectorAll('#mres .row.sel:not(.dis)')];
+    const all = shown.every(r => pSel.has(r.dataset.id));   // toggle: all selected -> clear them
+    shown.forEach(r => { all ? pSel.delete(r.dataset.id) : pSel.add(r.dataset.id); r.classList.toggle('on', !all); });
+    selCount();
+  },
+  pcommit: async () => {
+    const p = cp(); if (!p || !pSel.size) return;
+    pSel.forEach(id => { if (!p.songs.includes(id)) p.songs.push(id); });
+    await put('playlists', p);
+    pSel = new Set();
+    closeMod(); render();
+  }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'ms2') $('#mres').innerHTML = selRows(e.target.value.toLowerCase().trim());
+});
+  </script>
 </body>
 </html>
