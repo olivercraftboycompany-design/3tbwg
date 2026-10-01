@@ -336,5 +336,167 @@ modes = function () {
 };
 modes();
   </script>
+  <script>
+/* ---------- Custom background + expanded settings ---------- */
+const bgStyle = document.createElement('style');
+bgStyle.textContent = `
+.cbg,.cdim{position:absolute;inset:0;width:100%;height:100%}
+.cbg{background-size:cover;background-position:center;object-fit:cover;transform-origin:center}
+.bg.custom i{display:none}
+.glass,#view{border-radius:var(--rad,16px)}
+.sx{margin-top:22px;padding-top:6px;border-top:1px solid var(--bd)}
+.sx h4{font-size:15px;font-weight:800;margin:14px 0 4px}
+.sx .keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;color:var(--mu);font-size:13px;margin-top:10px}
+.sx .keys b{color:var(--tx);font-weight:600}
+`;
+document.head.appendChild(bgStyle);
+
+const bgDef = { mode: 'default', color: '#0b0d14', c1: '#1b2a6b', c2: '#5a1b6b', angle: 135, url: '', dim: 0.35, blur: 0, ftype: '', fname: '' };
+const lookDef = { glass: 0.06, rad: 16 };
+const bgGet = () => (S.bg = { ...bgDef, ...S.bg });
+const lookGet = () => (S.look = { ...lookDef, ...S.look });
+let bgFileUrl = '';
+
+/* layers inside the existing .bg container */
+const bgRoot = document.querySelector('.bg');
+const bgLayer = Object.assign(document.createElement('div'), { className: 'cbg' });
+const bgVid = Object.assign(document.createElement('video'), { className: 'cbg hid', loop: true, autoplay: true, playsInline: true });
+bgVid.muted = true;
+const bgDim = Object.assign(document.createElement('div'), { className: 'cdim' });
+bgRoot.prepend(bgLayer, bgVid, bgDim);
+
+function applyBG() {
+  const b = bgGet(), l = lookGet(), m = b.mode;
+  bgRoot.classList.toggle('custom', m !== 'default');
+
+  bgLayer.style.background = ''; bgLayer.style.backgroundImage = '';
+  let media = null;
+  if (m === 'color') bgLayer.style.background = b.color;
+  else if (m === 'gradient') bgLayer.style.background = `linear-gradient(${b.angle}deg,${b.c1},${b.c2})`;
+  else if (m === 'file' && bgFileUrl) media = { src: bgFileUrl, video: (b.ftype || '').startsWith('video') };
+  else if (m === 'url' && b.url) media = { src: b.url, video: /\.(mp4|webm|ogv|mov|m4v)(\?|#|$)/i.test(b.url) };
+  else if (m === 'art' && cur) media = { src: cover(cur), video: false };
+
+  if (media && !media.video) bgLayer.style.backgroundImage = `url("${media.src.replace(/"/g, '%22')}")`;
+  if (media && media.video) {
+    if (bgVid.dataset.src !== media.src) { bgVid.dataset.src = media.src; bgVid.src = media.src; }
+    bgVid.classList.remove('hid');
+    if (bgVid.paused) bgVid.play().catch(() => { });
+  } else {
+    bgVid.classList.add('hid');
+    if (bgVid.dataset.src) { bgVid.pause(); bgVid.removeAttribute('src'); bgVid.dataset.src = ''; bgVid.load(); }
+  }
+
+  const f = b.blur ? `blur(${b.blur}px)` : '', tr = b.blur ? 'scale(1.1)' : '';
+  [bgLayer, bgVid].forEach(x => { x.style.filter = f; x.style.transform = tr; });
+  bgDim.style.background = m === 'default' ? '' : `rgba(0,0,0,${b.dim})`;
+
+  const rs = document.documentElement.style;
+  rs.setProperty('--gl', `rgba(255,255,255,${l.glass})`);
+  rs.setProperty('--rad', l.rad + 'px');
+}
+
+/* re-apply after settings load, and when the song changes (album-art mode) */
+const _applyUIBg = applyUI;
+applyUI = function () { _applyUIBg(); applyBG(); };
+const _uiBg = ui;
+ui = function () { _uiBg(); if (bgGet().mode === 'art') applyBG(); };
+
+/* restore uploaded background file */
+meta('bgFile').then(f => { if (f) { bgFileUrl = URL.createObjectURL(f); applyBG(); } });
+
+/* file picker */
+const bgInput = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*,video/*', hidden: true });
+document.body.appendChild(bgInput);
+bgInput.onchange = async () => {
+  const f = bgInput.files[0]; bgInput.value = '';
+  if (!f) return;
+  await save('bgFile', f);
+  if (bgFileUrl) URL.revokeObjectURL(bgFileUrl);
+  bgFileUrl = URL.createObjectURL(f);
+  const b = bgGet(); b.mode = 'file'; b.ftype = f.type; b.fname = f.name;
+  save('S', S);
+  const sel = $('#bgmode'); if (sel) { sel.value = 'file'; bgVis(); }
+  const n = $('#bgname'); if (n) n.textContent = f.name;
+  applyBG();
+};
+
+/* ---------- Expanded settings ---------- */
+const bgVis = () => {
+  const sel = $('#bgmode'); if (!sel) return;
+  document.querySelectorAll('#mb .bgr').forEach(r =>
+    r.classList.toggle('hid', !(r.dataset.for === sel.value || (r.dataset.for === 'any' && sel.value !== 'default'))));
+};
+
+const extraSettings = () => {
+  const b = bgGet(), l = lookGet();
+  const modes = [['default', 'Default glow'], ['color', 'Solid color'], ['gradient', 'Gradient'], ['file', 'Image / GIF / video from device'], ['url', 'Image / video from link'], ['art', 'Current album art']];
+  return `
+<div class="sx"><h4>Background</h4>
+  <label>Type<select id="bgmode" data-bg="mode">${modes.map(([v, t]) => `<option value="${v}" ${b.mode === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+  <div class="bgr" data-for="color"><label>Color<input type="color" data-bg="color" value="${b.color}"></label></div>
+  <div class="bgr" data-for="gradient">
+    <label>From<input type="color" data-bg="c1" value="${b.c1}"></label>
+    <label>To<input type="color" data-bg="c2" value="${b.c2}"></label>
+    <label>Angle<input type="range" data-bg="angle" min="0" max="360" step="1" value="${b.angle}"></label>
+  </div>
+  <div class="bgr" data-for="file"><div style="display:flex;gap:12px;align-items:center;margin:14px 0">
+    <button class="btn" data-a="bgpick">Choose file</button><span id="bgname" style="color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.fname) || 'No file chosen'}</span></div></div>
+  <div class="bgr" data-for="url"><label>Link (image, GIF or mp4/webm)<input type="url" data-bg="url" placeholder="https://..." value="${esc(b.url)}"></label></div>
+  <div class="bgr" data-for="any">
+    <label>Dim<input type="range" data-bg="dim" min="0" max="0.9" step="0.01" value="${b.dim}"></label>
+    <label>Blur<input type="range" data-bg="blur" min="0" max="40" step="1" value="${b.blur}"></label>
+  </div>
+</div>
+<div class="sx"><h4>Appearance</h4>
+  <label>Glass opacity<input type="range" data-look="glass" min="0" max="0.4" step="0.01" value="${l.glass}"></label>
+  <label>Corner roundness<input type="range" data-look="rad" min="0" max="32" step="1" value="${l.rad}"></label>
+  <button class="btn" data-a="bgreset">Reset appearance</button>
+</div>
+<div class="sx"><h4>Keyboard shortcuts</h4><div class="keys">
+  <b>Space</b><span>Play / pause</span><b>Left / Right</b><span>Back / forward 10s</span>
+  <b>N / P</b><span>Next / previous</span><b>S / R</b><span>Shuffle / repeat</span>
+  <b>L</b><span>Lyrics</span><b>F</b><span>Favorite</span><b>M</b><span>Mute</span><b>Esc</b><span>Close panels</span></div>
+</div>`;
+};
+
+const _settingsBg = settings;
+settings = async function () {
+  await _settingsBg.apply(this, arguments);
+  const row = document.querySelector('#mb .mrow');
+  if (row) row.insertAdjacentHTML('beforebegin', extraSettings());
+  bgVis();
+};
+A.settings = settings;
+
+/* controls */
+const bgNum = ['angle', 'dim', 'blur'];
+const bgHandle = e => {
+  const t = e.target;
+  if (t.dataset.bg) {
+    const k = t.dataset.bg;
+    if (k === 'url' && e.type === 'input') return;          // apply links on change, not every keystroke
+    bgGet()[k] = bgNum.includes(k) ? +t.value : t.value;
+    if (k === 'mode') bgVis();
+    save('S', S); applyBG();
+  } else if (t.dataset.look) {
+    lookGet()[t.dataset.look] = +t.value;
+    save('S', S); applyBG();
+  }
+};
+document.addEventListener('input', bgHandle);
+document.addEventListener('change', bgHandle);
+
+Object.assign(A, {
+  bgpick: () => bgInput.click(),
+  bgreset: async () => {
+    if (!confirm('Reset appearance and remove the custom background?')) return;
+    delete S.bg; delete S.look; S.accent = '#1ed760'; S.blur = 24;
+    await del('meta', 'bgFile'); bgFileUrl = '';
+    save('S', S); applyUI(); settings();
+  }
+});
+applyBG();
+  </script>
 </body>
 </html>
