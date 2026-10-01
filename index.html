@@ -309,5 +309,32 @@ document.addEventListener('click', e => {
 ['wheel', 'touchmove'].forEach(ev =>
   $('#lyr').addEventListener(ev, () => { holdUntil = Date.now() + 3000; }, { passive: true }));
   </script>
+  <script>
+/* ---------- Repeat modes: off -> all -> one -> once ---------- */
+let repOnceUsed = false;
+
+/* every new track gets a fresh "once" */
+const _loadRep = load;
+load = function () { repOnceUsed = false; return _loadRep.apply(this, arguments); };
+
+/* what happens when a song ends */
+au.onended = () => {
+  if (S.rep === 2) { au.currentTime = 0; start(); }                                     // repeat one (loop)
+  else if (S.rep === 3 && !repOnceUsed) { repOnceUsed = true; au.currentTime = 0; start(); }  // repeat once
+  else if ((S.rep === 0 || S.rep === 3) && !S.shuf && qi === queue.length - 1) pi();    // end of queue: stop
+  else next();
+};
+
+/* the Repeat button (and the R key) cycle through 4 modes */
+A.rep = () => { S.rep = (S.rep + 1) % 4; repOnceUsed = false; save('S', S); modes(); };
+
+/* button label */
+const _modesRep = modes;
+modes = function () {
+  _modesRep();
+  $('#bRep').textContent = 'Repeat: ' + ['off', 'all', 'one', 'once'][S.rep];
+};
+modes();
+  </script>
 </body>
 </html>
