@@ -164,3 +164,74 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
   #big.side .bm{gap:20px}
   #seek::-webkit-slider-thumb,#vol::-webkit-slider-thumb{opacity:1}
 }
+
+/* ---------- sideways (landscape phones): art left, info + controls right ---------- */
+@media (orientation:landscape) and (max-height:500px){
+  #app{grid-template-columns:184px minmax(0,1fr);gap:6px;padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) 70px max(6px,env(safe-area-inset-left))}
+  body.nomini #app{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+  .side{padding:10px 8px}
+  .side h1{font-size:17px;padding:0 10px 10px}
+  #nav button{padding:8px 12px}
+  .top{padding:6px 10px;gap:8px}
+  .top input{padding:8px 14px}
+  .top .btn{padding:7px 12px;font-size:13px}
+  #view{padding:2px 16px 18px}
+  .pt{font-size:22px;margin:10px 0 8px}
+  .phead img{width:120px;height:120px}
+  .phead h2{font-size:28px}
+  #mini{height:58px;left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));bottom:max(6px,env(safe-area-inset-bottom))}
+  #mini img{width:44px;height:44px}
+  .mb{max-height:90dvh;padding:18px}
+  /* the player is already sideways here, so the manual toggle isn't needed */
+  #big [data-a=side]{display:none}
+
+  #big:is(.side,:not(.side)) .bw{padding:calc(8px + env(safe-area-inset-top)) max(16px,calc(8px + env(safe-area-inset-right))) calc(10px + env(safe-area-inset-bottom)) max(16px,calc(8px + env(safe-area-inset-left)))}
+  #big:is(.side,:not(.side)) .bt .btn{padding:6px 14px;font-size:13px}
+  #big:is(.side,:not(.side)) .bm{max-width:none;flex-direction:row;align-items:center;gap:clamp(16px,4vw,40px);padding:6px 0 0}
+  #big:is(.side,:not(.side)) .artw{flex:0 0 auto;align-self:stretch;height:auto;width:auto;aspect-ratio:1;max-width:45%;min-height:0}
+  #big:is(.side,:not(.side)) .bc{flex:1 1 0;min-width:0;max-width:520px;margin:0 auto}
+  #big:is(.side,:not(.side)) .ti h2{font-size:clamp(18px,2.6vw,22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big:is(.side,:not(.side)) .ti>div{min-width:0}
+  #big:is(.side,:not(.side)) .ti p{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big:is(.side,:not(.side)) .ti small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big:is(.side,:not(.side)) .pr{margin:8px 0 6px}
+  #big:is(.side,:not(.side)) .tr{gap:clamp(6px,1.6vw,14px)}
+  #big:is(.side,:not(.side)) .tr .btn{padding:7px 12px}
+  #big:is(.side,:not(.side)) .ib.big{width:56px;height:56px}
+  #big:is(.side,:not(.side)) .ib.big .ic{width:28px;height:28px}
+  #big:is(.side,:not(.side)) .vr{margin-top:8px}
+  #big:is(.side,:not(.side)) .bb{margin-top:10px;gap:8px;flex-wrap:nowrap}
+  #big:is(.side,:not(.side)) .bb .btn{padding:6px 12px;font-size:13px}
+  #big.lyr:is(.side,:not(.side)) .bc{max-width:760px}
+  #big.lyr:is(.side,:not(.side)) #lyr{margin-top:8px}
+  #big.lyr:is(.side,:not(.side)) #lyr pre{font-size:clamp(18px,2.6vw,24px);line-height:1.5}
+  #qp{height:92%;padding:12px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left))}
+}
+
+/* "Sideways mode" button on a portrait phone: turn the player 90deg so it fills the
+   screen sideways even with auto-rotate locked. Same two-column layout as above. */
+@media (orientation:portrait) and (max-width:760px){
+  #big.side{inset:auto;top:0;left:0;width:100vh;width:100dvh;height:100vw;transform-origin:0 0;transform:translateX(100vw) rotate(90deg)}
+
+  #big.side .bw{padding:calc(8px + env(safe-area-inset-top)) max(16px,calc(8px + env(safe-area-inset-right))) calc(10px + env(safe-area-inset-bottom)) max(16px,calc(8px + env(safe-area-inset-left)))}
+  #big.side .bt .btn{padding:6px 14px;font-size:13px}
+  #big.side .bm{max-width:none;flex-direction:row;align-items:center;gap:clamp(16px,4vw,40px);padding:6px 0 0}
+  #big.side .artw{flex:0 0 auto;align-self:stretch;height:auto;width:auto;aspect-ratio:1;max-width:45%;min-height:0}
+  #big.side .bc{flex:1 1 0;min-width:0;max-width:520px;margin:0 auto}
+  #big.side .ti h2{font-size:clamp(18px,2.6vw,22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big.side .ti>div{min-width:0}
+  #big.side .ti p{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big.side .ti small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #big.side .pr{margin:8px 0 6px}
+  #big.side .tr{gap:clamp(6px,1.6vw,14px)}
+  #big.side .tr .btn{padding:7px 12px}
+  #big.side .ib.big{width:56px;height:56px}
+  #big.side .ib.big .ic{width:28px;height:28px}
+  #big.side .vr{margin-top:8px}
+  #big.side .bb{margin-top:10px;gap:8px;flex-wrap:nowrap}
+  #big.side .bb .btn{padding:6px 12px;font-size:13px}
+  #big.side.lyr .bc{max-width:760px}
+  #big.side.lyr #lyr{margin-top:8px}
+  #big.side.lyr #lyr pre{font-size:clamp(18px,2.6vw,24px);line-height:1.5}
+  #big.side #qp{height:92%;padding:12px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left))}
+}

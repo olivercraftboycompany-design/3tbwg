@@ -1,5 +1,5 @@
 /* nortest service worker — bump VERSION when you change files so phones get the update */
-const VERSION = 'nortest-v1';
+const VERSION = 'nortest-v2';
 const SHELL = [
   './',
   './index.html',
