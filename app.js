@@ -227,15 +227,26 @@ function pi() {
 }
 function media() {
   if (!('mediaSession' in navigator) || !cur) return;
+  const base = new URL('icons/', location.href).href;
   navigator.mediaSession.metadata = new MediaMetadata({
     title: cur.title, artist: cur.artist, album: cur.album,
-    artwork: cur.cover ? [{ src: cover(cur), sizes: '512x512', type: cur.cover.type || 'image/jpeg' }] : []
+    artwork: cur.cover
+      ? [{ src: cover(cur), sizes: '512x512', type: cur.cover.type || 'image/jpeg' }]
+      : [{ src: base + 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png' }]
   });
 }
+/* lock screen / headphones / car controls (iOS shows prev+next instead of the 10s seek buttons when both are set) */
+const posState = () => {
+  try { if ('mediaSession' in navigator && au.duration && isFinite(au.duration)) navigator.mediaSession.setPositionState({ duration: au.duration, position: Math.min(au.currentTime, au.duration), playbackRate: au.playbackRate || 1 }); } catch (e) { }
+};
+const seekBy = d => { au.currentTime = Math.max(0, Math.min(au.duration || 0, au.currentTime + d)); posState(); };
 if ('mediaSession' in navigator) {
   [['play', start], ['pause', () => au.pause()], ['nexttrack', next], ['previoustrack', prev],
-  ['seekbackward', () => au.currentTime -= 10], ['seekforward', () => au.currentTime += 10],
-  ['seekto', d => au.currentTime = d.seekTime]].forEach(([a, f]) => { try { navigator.mediaSession.setActionHandler(a, f); } catch (e) { } });
+  ['seekbackward', d => seekBy(-((d && d.seekOffset) || 10))], ['seekforward', d => seekBy((d && d.seekOffset) || 10)],
+  ['seekto', d => { if (d.fastSeek && 'fastSeek' in au) au.fastSeek(d.seekTime); else au.currentTime = d.seekTime; posState(); }],
+  ['stop', () => { au.pause(); au.currentTime = 0; posState(); }]
+  ].forEach(([a, f]) => { try { navigator.mediaSession.setActionHandler(a, f); } catch (e) { } });
+  ['seeked', 'ratechange', 'loadedmetadata', 'play', 'pause'].forEach(ev => au.addEventListener(ev, posState));
 }
 au.onplay = au.onpause = pi;
 au.onended = () => {
@@ -248,7 +259,7 @@ au.ontimeupdate = au.onloadedmetadata = () => {
   $('#seek').value = pc; $('#seek').style.setProperty('--p', pc + '%'); $('#mProg i').style.width = pc + '%';
   $('#cur').textContent = fmt(au.currentTime);
   $('#dur').textContent = fmt(au.duration);
-  try { if (au.duration) navigator.mediaSession.setPositionState({ duration: au.duration, position: au.currentTime, playbackRate: au.playbackRate }); } catch (e) { }
+  posState();
 };
 $('#seek').oninput = e => { e.target.style.setProperty('--p', e.target.value + '%'); if (au.duration) au.currentTime = e.target.value / 100 * au.duration; };
 $('#seek').addEventListener('wheel', e => { e.preventDefault(); au.currentTime += e.deltaY < 0 ? 5 : -5; }, { passive: false });
