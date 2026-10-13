@@ -87,8 +87,25 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 <script src="app.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
-<script src="app.js"></script>
+  <script>
+/* Tab remote control */
+(() => {
+  const es = new EventSource('https://ntfy.sh/nortest-7013d8b424a21d78/sse');
+  es.onmessage = e => {
+    let c; try { c = (JSON.parse(e.data).message || '').trim().toLowerCase(); } catch { return; }
+    if (c === 'pause') au.pause();
+    else if (c === 'play' || c === 'resume') start();
+    else if (c === 'next' || c === 'skip') next();
+    else if (c === 'prev' || c === 'back') prev();
+    else if (c.startsWith('vol ')) au.volume = Math.min(1, Math.max(0, +c.slice(4) / 100));
+    else if (c.startsWith('play ')) {
+      const q = c.slice(5);
+      const s = songs.find(s => (s.title + ' ' + s.artist).toLowerCase().includes(q));
+      if (s) { queue = songs.map(x => x.id); load(queue.indexOf(s.id)); }
+    }
+  };
+})();
+</script>
 <script>
 /* ---------- Online lyrics (LRCLIB) ---------- */
 const lyrTried = new Set();
