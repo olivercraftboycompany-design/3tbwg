@@ -84,7 +84,7 @@ const qHTML = () => `<div class="qwrap"><div class="bar"><input class="qs" place
 const addRows = (p, q) => songs.filter(s => match(s, q)).map(s => `<div class="row" data-id="${s.id}"><img src="${cover(s)}" alt=""><div class="rm"><div><b>${esc(s.title)}</b></div><span>${esc(s.artist)}</span></div><button class="btn sm" data-a="ptog">${p.songs.includes(s.id) ? 'Added' : 'Add'}</button></div>`).join('');
 
 const sorters = { added: (a, b) => b.added - a.added, title: (a, b) => a.title.localeCompare(b.title), artist: (a, b) => a.artist.localeCompare(b.artist), album: (a, b) => a.album.localeCompare(b.album) };
-const libBar = n => `<div class="bar"><button class="btn pri" data-a="playall">Play all</button><button class="btn" data-a="shufall">Shuffle all</button><span style="flex:1;color:var(--mu)">${n} songs</span><select data-s="sort" style="width:auto">${[['added', 'Recently added'], ['title', 'Title'], ['artist', 'Artist'], ['album', 'Album']].map(([v, t]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
+const libBar = n => `<div class="bar"><button class="btn pri" data-a="playall">Play all</button><button class="btn" data-a="shufall">Shuffle all</button><span style="flex:1;color:var(--mu)">${n} songs</span><select data-s="sort" style="width:auto">${[['added', 'Recently added'], ['title', 'Title'], ['artist', 'Artist'], ['album', 'Album'], ['plays', 'Most played']].map(([v, t]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
 function render() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
   $('#search').style.display = view === 'library' ? '' : 'none';
