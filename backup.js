@@ -163,16 +163,16 @@
   const askPersist = async () => { try { return SM.persist ? await SM.persist() : null; } catch { return null; } };
   const estimate = async () => { try { return SM.estimate ? await SM.estimate() : null; } catch { return null; } };
   /* quietly ask once songs exist (Chrome decides on its own; it never shows a popup) */
-  const autoPersist = async () => { if (songs.length && (await isPersisted()) === false) await askPersist(); };
+  const autoPersist = async () => { if (own().length && (await isPersisted()) === false) await askPersist(); };
   $('#file').addEventListener('change', () => setTimeout(autoPersist, 3000));
   setTimeout(autoPersist, 4000);
 
   /* ---------- header button + "last backup" nudge ---------- */
   const settingsBtn = document.querySelector('header.top [data-a=settings]');
-  if (settingsBtn) settingsBtn.insertAdjacentHTML('afterend', '<button class="btn" data-a="backup" id="bkBtn" title="Back up or restore your songs">Backup</button>');
+  if (settingsBtn) settingsBtn.insertAdjacentHTML('beforebegin', `<button class="ib" data-a="backup" id="bkBtn" aria-label="Backup" title="Back up or restore your songs">${typeof mi === 'function' ? mi('backup') : 'Backup'}</button>`);
   let lastBackup = 0;
   const nudge = () => {
-    const due = songs.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * DAY);
+    const due = own().length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * DAY);
     const b = $('#bkBtn');
     if (b) { b.classList.toggle('due', due); b.title = due ? `Last backup: ${ago(lastBackup)}. Tap to back up your songs.` : 'Back up or restore your songs'; }
   };
@@ -183,7 +183,7 @@
 
   const sizes = () => {
     let audio = 0, covers = 0;
-    songs.forEach(s => { audio += (s.blob && s.blob.size) || 0; covers += (s.cover && s.cover.size) || 0; });
+    own().forEach(s => { audio += (s.blob && s.blob.size) || 0; covers += (s.cover && s.cover.size) || 0; });
     return { audio, covers };
   };
 
@@ -198,7 +198,7 @@
       : pers === false
         ? '<p class="bk-warn">⚠️ Not protected yet. If your phone runs low on space, Chrome could clear your songs. Installing the app usually fixes this.</p><div class="bk-row"><button class="btn" data-a="bkpersist">Protect my songs</button></div>'
         : '<p>This browser can\'t lock storage, so keep a backup.</p>';
-    const lastHTML = songs.length
+    const lastHTML = own().length
       ? `<p>Last backup: <b>${ago(lastBackup)}</b>${(!lastBackup || Date.now() - lastBackup > 14 * DAY) ? ' · good time for a fresh one' : ''}</p>` : '';
 
     const r = B.rInfo;
@@ -217,7 +217,7 @@
   <p id="bkMsg" class="${B.msgCls}">${esc(B.msg)}</p>
 </div>
 <div class="bk-card"><h4>💾 Storage</h4>
-  <p><b>${songs.length}</b> songs · <b>${pls.length}</b> playlists · audio ${MB(audio)}</p>
+  <p><b>${own().length}</b> songs · <b>${pls.length}</b> playlists · audio ${MB(audio)}</p>
   ${est ? `<div class="bk-bar"><i style="width:${Math.max(pc, used ? 1 : 0)}%"></i></div><p>Using <b>${MB(used)}</b> of ${MB(quota)} available to nortest</p>` : ''}
   ${persHTML}
 </div>
@@ -255,7 +255,7 @@
       const S2 = { ...S };
       const bgFile = full ? await meta('bgFile') : null;
       const entries = [], list = [];
-      for (const s of songs) {
+      for (const s of own()) {
         const tag = s.id.slice(0, 8);
         const rec = {
           id: s.id, title: s.title, artist: s.artist, album: s.album, lyrics: s.lyrics || '', synced: s.synced || '', syncTried: !!s.syncTried,
@@ -451,7 +451,7 @@
       }
 
       /* reload the player's in-memory library */
-      songs = await all('songs'); pls = await all('playlists'); hist = newHist;
+      songs = mergeDev(await all('songs')); pls = await all('playlists'); hist = newHist;
       if (cur) cur = byId(cur.id) || cur;
       applyUI(); render(); ui();
       autoPersist();
@@ -471,7 +471,7 @@
       progress(B.prog, full
         ? 'Your phone ran out of space partway. Songs restored so far are kept; free up space and restore again (nothing gets doubled).'
         : 'Restore stopped: ' + ((e && e.message) || e) + '. Songs restored so far are kept; you can run it again safely.', 'bk-err');
-      songs = await all('songs'); pls = await all('playlists'); render();
+      songs = mergeDev(await all('songs')); pls = await all('playlists'); render();
     } finally {
       B.busy = false;
       refresh();
@@ -499,14 +499,11 @@
     }
   });
 
-  /* a shortcut card at the top of Settings too */
-  const _settingsBk = settings;
-  settings = async function () {
-    await _settingsBk.apply(this, arguments);
-    const h = document.querySelector('#mb h3');
-    if (h) h.insertAdjacentHTML('afterend', `<div class="bk-card" style="display:flex;align-items:center;gap:12px;margin-top:0"><div style="flex:1"><h4 style="margin:0">💾 Backup &amp; restore</h4><p>Last backup: <b>${ago(lastBackup)}</b></p></div><button class="btn pri" data-a="backup">Open</button></div>`);
+  /* "last backup" line inside Settings > Backup & restore */
+  window.onSettingsRendered = p => {
+    const slot = p.querySelector('.bk-slot');
+    if (slot) slot.innerHTML = `<div class="li"><div class="lt"><b>Last backup</b><span>${ago(lastBackup)}</span></div></div>`;
   };
-  A.settings = settings;
 
   /* deep link: ?backup opens the panel (used by the app shortcut) */
   if (/[?&]backup\b/.test(location.search) || location.hash === '#backup') setTimeout(panel, 600);

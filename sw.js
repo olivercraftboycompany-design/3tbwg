@@ -1,11 +1,13 @@
 /* nortest service worker — bump VERSION when you change files so phones get the update */
-const VERSION = 'nortest-v6';
+const VERSION = 'nortest-v7';
 const SHELL = [
   './',
   './index.html',
   './app.js',
   './backup.js',
   './style.css',
+  './fonts.css',
+  './m3.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
