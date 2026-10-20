@@ -1,8 +1,8 @@
-/* nortest 1.6.3 - Radio: live internet radio from the free, public Radio Browser directory (radio-browser.info).
+/* nortest 1.6.3 (1.6.5: Live from your state) - Radio: live internet radio from the free, public Radio Browser directory (radio-browser.info).
    Loaded last. Stations play in their OWN audio element (#rau), not through the equalizer graph: a stream from
    another site would come out silent through Web Audio. The mini player, the big player, Media Session (lock screen)
    and the Tab remote follow the radio while it plays; tapping any song goes back to your music.
-   Stored: localStorage nortest_radio_favs (favorite stations), nortest_radio_recent, nortest_radio_cc (country). */
+   Stored: localStorage nortest_radio_favs (favorite stations), nortest_radio_recent, nortest_radio_cc (country), nortest_radio_region. */
 (() => {
   'use strict';
   const LSF = 'nortest_radio_favs', LSR = 'nortest_radio_recent', LSC = 'nortest_radio_cc';
@@ -116,6 +116,19 @@ body.radio-on #bArt:not([src^="data:"]){padding:14%;box-sizing:border-box}
     return list;
   };
   const ccName = c => (COUNTRIES.find(x => x[0] === c) || [c, c])[1];
+  /* where the phone roughly is (state/region), from a free public lookup with no key; kept a week (nortest_radio_region) */
+  const LSG = 'nortest_radio_region';
+  let RG = ls(LSG, null);
+  const region = async () => {
+    if (RG && RG.r && Date.now() - (RG.at || 0) < 7 * 864e5) return RG;
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 5000);
+      const j = await (await fetch('https://get.geojs.io/v1/ip/geo.json', { signal: ctl.signal })).json();
+      clearTimeout(to);
+      if (j && j.region && j.country_code) { RG = { r: String(j.region), cc: String(j.country_code).toUpperCase(), city: j.city || '', at: Date.now() }; lsSet(LSG, RG); }
+    } catch (e) { }
+    return RG;
+  };
 
   /* what the Radio page lists: sections of stations */
   async function fetchSections() {
@@ -130,6 +143,12 @@ body.radio-on #bArt:not([src^="data:"]){padding:14%;box-sizing:border-box}
     if (R.mode === 'favs') return [{ h: '', list: R.favs, empty: 'Tap the heart on a station to keep it here.' }];
     if (R.mode === 'top') {
       const secs = [];
+      /* 1.6.5: "Live from <your state>" first: local stations for where the phone is (approximate, from the internet connection) */
+      const rg = await region();
+      if (rg && rg.r && rg.cc && (!cc || rg.cc === cc)) {
+        const loc = await cached('loc:' + rg.cc + ':' + rg.r, async () => tidy(await search({ state: rg.r, countrycode: rg.cc, limit: 80 }), 2).slice(0, 15)).catch(() => []);
+        if (loc.length) secs.push({ h: 'Live from ' + rg.r, list: loc });
+      }
       if (cc) secs.push({ h: 'Top in ' + (cc === 'US' ? 'the US' : cc === 'GB' ? 'the UK' : ccName(cc)), list: await cached('top:' + cc, async () => tidy(await search({ countrycode: cc })).slice(0, cc === 'US' ? 30 : 25)) });
       const world = await cached('top:', async () => tidy(await search({ limit: 200 })).slice(0, 40));
       secs.push({ h: 'Top worldwide', list: world.filter(s => s.cc !== cc).slice(0, 25) });
