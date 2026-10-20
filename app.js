@@ -47,7 +47,7 @@ let songs = [], pls = [], queue = [], qi = -1, hist = [], cur = null, url = '', 
 let S = { bass: 0, mid: 0, treb: 0, vol: 1, speed: 1, blur: 24, accent: '#1ed760', sort: 'added', shuf: false, rep: 0, showOut: true, hideMini: false, sink: '' };
 let sleepT, sleepMin = 0;
 let view = 'library', sub = null, lastList = [], covers = {};
-const byId = id => songs.find(s => s.id === id);
+const byId = id => songs.find(s => s.id === id) || (window.spSong ? spSong(id) : undefined);
 const cover = s => s && s.cover ? (covers[s.id] ||= URL.createObjectURL(s.cover)) : s && s.art ? s.art : s ? phFor(s) : PH;
 const dropCover = id => { if (covers[id]) { URL.revokeObjectURL(covers[id]); delete covers[id]; } };
 
@@ -132,7 +132,7 @@ function groups(k) {
   const e = Object.entries(m);
   return e.length ? `<div class="grid">${e.map(([n, ids]) => card(n, nS(ids.length), cover(byId(ids[0])), n)).join('')}</div>` : `<p class="empty">Upload songs to see ${k}.</p>`;
 }
-const pcover = p => cover(byId(p.songs.find(byId)));
+const pcover = p => (window.spCover && spCover(p)) || cover(byId(p.songs.find(byId)));
 function pHTML() {
   const p = cp();
   if (p) {
@@ -388,7 +388,7 @@ async function settings() {
   let devs = [];
   try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput'); } catch (e) { }
   const p = $('#setp'), wasOpen = !p.classList.contains('hid'), y = wasOpen ? p.scrollTop : 0;
-  const ver = (NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '') || '1.6.3';
+  const ver = (NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '') || '1.6.4';
   const rs = window.tabRemote ? tabRemote.state() : 'off';
   const hidden = NN ? dev.filter(x => x.hidden) : [];
   p.innerHTML = `<header class="sh"><button class="ib" data-a="setx" aria-label="Back"><span class="rot90">${mi('keyboard_arrow_down')}</span></button><h1>Settings</h1></header>
