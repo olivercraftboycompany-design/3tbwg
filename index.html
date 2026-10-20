@@ -125,6 +125,7 @@
     fetch('https://ntfy.sh/' + TOPIC + '-status', { method: 'POST', body: txt }).catch(() => {});
   };
   const run = c => {
+    if (window.nortestRadio && nortestRadio.remote(c)) return;
     if (c === 'pause') au.pause();
     else if (c === 'play' || c === 'resume') start();
     else if (c === 'next' || c === 'skip') next();
@@ -522,6 +523,7 @@ applyBG();
   </script>
   <script src="backup.js"></script>
 <script src="b1.js"></script>
+<script src="radio.js"></script>
   <script>
 /* ---------- Install as an app (PWA) ---------- */
 (() => {
