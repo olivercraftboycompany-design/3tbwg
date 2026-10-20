@@ -388,7 +388,7 @@ async function settings() {
   let devs = [];
   try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput'); } catch (e) { }
   const p = $('#setp'), wasOpen = !p.classList.contains('hid'), y = wasOpen ? p.scrollTop : 0;
-  const ver = (NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '') || '1.6.4';
+  const ver = (NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '') || '1.6.5';
   const rs = window.tabRemote ? tabRemote.state() : 'off';
   const hidden = NN ? dev.filter(x => x.hidden) : [];
   p.innerHTML = `<header class="sh"><button class="ib" data-a="setx" aria-label="Back"><span class="rot90">${mi('keyboard_arrow_down')}</span></button><h1>Settings</h1></header>
