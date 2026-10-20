@@ -151,7 +151,7 @@
   const reg = (t, meta) => {
     const id = sidOf(t);
     let s = REG.get(id);
-    if (!s) { s = { id, title: t.t, artist: t.a || 'Unknown Artist', album: meta.name || 'Spotify', dur: t.d || 0, stream: true, spid: t.id || '', art: '', cover: null, fav: false, lyrics: '', added: 0, _pc: '' }; REG.set(id, s); }
+    if (!s) { s = { id, title: t.t, artist: t.a || 'Unknown Artist', album: meta.type === 'track' || meta.type === 'yt' ? '' : meta.name || 'Spotify', dur: t.d || 0, stream: true, spid: t.id || '', art: '', cover: null, fav: false, lyrics: '', added: 0, _pc: '' }; REG.set(id, s); }
     if (t.yt && !(YTC[id] && YTC[id].length)) YTC[id] = [t.yt];
     s.art = ytArt(id) || (meta.type === 'track' && meta.cover) || phFor(s);
     return s;
