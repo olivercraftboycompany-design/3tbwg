@@ -1,4 +1,4 @@
-/* nortest 1.6.4 - Import from Spotify: paste a Spotify playlist (or album) link and Nortest builds the same playlist
+/* nortest 1.6.4 (1.6.5: song links, YouTube links, recently pasted, pick another version) - Import from Spotify: paste a Spotify playlist (or album) link and Nortest builds the same playlist
    out of songs that are ALREADY in your library. Nothing is downloaded: Spotify only gives the track list (names,
    artists, lengths, cover). Songs that aren't on your phone STREAM inside Nortest through the official YouTube
    embedded player (or Spotify's own embed when YouTube has nothing), so the whole playlist plays straight through.
@@ -9,7 +9,7 @@
 (() => {
   'use strict';
   const API = 'https://nortest-spotify.sites.tab.bot/api?u=';
-  const LSK = 'nortest_spotify_imports', YTK = 'nortest_spotify_yt';
+  const LSK = 'nortest_spotify_imports', YTK = 'nortest_spotify_yt', LSR = 'nortest_spotify_recent';
   const YTAPI = 'https://nortest-spotify.sites.tab.bot/yt?';
   const SVG_IMPORT = '<path d="M12 3.8v10.4"/><path d="M7.9 10.3l4.1 4.1 4.1-4.1"/><path d="M4.6 15.2v2.4a2.6 2.6 0 0 0 2.6 2.6h9.6a2.6 2.6 0 0 0 2.6-2.6v-2.4"/>';
   const SVG_OUT = '<path d="M13.4 4.6h6v6"/><path d="M19.4 4.6l-8.2 8.2"/><path d="M17.4 13.6v3.8a2 2 0 0 1-2 2H6.6a2 2 0 0 1-2-2V8.6a2 2 0 0 1 2-2h3.8"/>';
@@ -142,7 +142,7 @@
   const ytURL = t => 'https://www.youtube.com/results?search_query=' + encodeURIComponent((t.t + ' ' + (t.a || '')).trim());
   const spURL = t => t.id ? 'https://open.spotify.com/track/' + t.id : 'https://open.spotify.com/search/' + encodeURIComponent((t.t + ' ' + (t.a || '')).trim());
   const hsh = x => { let h = 0; for (const c of x) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
-  const sidOf = t => 'sp:' + (t.id || 'x' + hsh(clean(t.t) + '|' + clean(t.a)));
+  const sidOf = t => 'sp:' + (t.yt ? 'y' + t.yt : t.id || 'x' + hsh(clean(t.t) + '|' + clean(t.a)));
 
   /* streaming songs: song-shaped objects the player can queue (byId finds them), never stored as songs */
   const REG = new Map();
@@ -152,8 +152,8 @@
     const id = sidOf(t);
     let s = REG.get(id);
     if (!s) { s = { id, title: t.t, artist: t.a || 'Unknown Artist', album: meta.name || 'Spotify', dur: t.d || 0, stream: true, spid: t.id || '', art: '', cover: null, fav: false, lyrics: '', added: 0, _pc: '' }; REG.set(id, s); }
-    if (meta.cover && !s._pc) s._pc = meta.cover;
-    s.art = ytArt(id) || phFor(s);
+    if (t.yt && !(YTC[id] && YTC[id].length)) YTC[id] = [t.yt];
+    s.art = ytArt(id) || (meta.type === 'track' && meta.cover) || phFor(s);
     return s;
   };
   const regAll = () => { const all = ls(); for (const k in all) { const e = all[k]; if (!e || !e.tracks) continue; e.tracks.forEach((t, i) => { if (!(e.ids && e.ids[i])) reg(t, e); }); } };
@@ -202,18 +202,51 @@ body.sp-on #bArt{visibility:hidden}
 #spv .sphint[hidden]{display:none}
 #spv .spsrc{position:absolute;left:12px;top:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.7)}
 .spl{flex:none;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
-.spl .btn.sm{height:26px;padding:0 10px;font-size:12px;border-radius:13px;text-decoration:none;color:var(--md-on-surface-variant);font-weight:600}
+#view .spl a.btn.sm{height:26px;padding:0 10px;font-size:12px;border-radius:13px;text-decoration:none;color:var(--md-on-surface-variant);font-weight:600;background:transparent}
 .spacts{margin-top:4px}
 .spsec{display:flex;align-items:baseline;justify-content:space-between}
+#mb .sprec{margin-top:14px}
+#mb .sprec .sprh{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:var(--md-on-surface-variant);margin:0 2px 6px}
+#mb .sprec .sprh button{background:none;border:0;color:var(--md-primary);font-weight:600;font-size:13px;cursor:pointer;padding:4px}
+#mb .sprl{display:grid;gap:2px;max-height:180px;overflow:auto;border-radius:14px}
+#mb .sprl button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:4px;background:var(--lg-hair,rgba(255,255,255,.06));color:inherit;text-align:left;cursor:pointer}
+#mb .sprl img{width:36px;height:36px;border-radius:8px;object-fit:cover;flex:none;background:#3a3f4a}
+#mb .sprl span{flex:1;min-width:0}#mb .sprl b,#mb .sprl small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#mb .sprl b{font-size:14px;font-weight:600}#mb .sprl small{font-size:12px;color:var(--md-on-surface-variant)}
+.spone{display:flex;gap:14px;align-items:center;margin:12px 0 4px}
+.spone img{width:72px;height:72px;border-radius:14px;object-fit:cover;flex:none;background:#3a3f4a}
+.spone b{display:block;font-size:17px;font-weight:600;line-height:22px}.spone span{display:block;color:var(--md-on-surface-variant);font-size:14px}
+.spone .ph{display:inline-block;margin-top:6px}
+.spver button{display:flex;align-items:center;gap:10px;text-align:left;height:auto;min-height:52px;padding:8px 12px;justify-content:flex-start;border-radius:14px}
+.spver img{width:64px;height:36px;border-radius:6px;object-fit:cover;flex:none}
+.spver span{flex:1;min-width:0;font-weight:500}.spver small{display:block;opacity:.7;font-size:12px}
 .spsec small{font-size:13px;font-weight:500;color:var(--md-on-surface-variant);margin-right:6px}
 `;
   document.head.appendChild(st);
 
+  /* ---------- recently pasted ---------- */
+  const recent = () => { try { const v = JSON.parse(localStorage.getItem(LSR)); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+  const addRecent = (j, u) => { const r = recent().filter(x => x.u !== u && x.k !== j.type + ':' + j.id); r.unshift({ u, k: j.type + ':' + j.id, n: j.name, s: j.type === 'yt' ? 'YouTube song' + (j.owner ? ' · ' + j.owner : '') : j.type === 'track' ? 'Song · ' + j.owner : (j.type === 'album' ? 'Album' : 'Playlist') + ' · ' + nS(j.count || 0), c: j.cover || '', at: Date.now() }); try { localStorage.setItem(LSR, JSON.stringify(r.slice(0, 8))); } catch (e) { } };
+  const recentHTML = () => { const r = recent(); return r.length ? `<div class="sprec"><div class="sprh"><span>Recently pasted</span><button data-a="sprclr">Clear</button></div><div class="sprl">${r.map(x => `<button data-a="sprecent" data-u="${esc(x.u)}"><img src="${esc(x.c || PH)}" alt=""><span><b>${esc(x.n)}</b><small>${esc(x.s)}</small></span></button>`).join('')}</div></div>` : ''; };
+  /* ---------- one song (a Spotify song or a YouTube / YouTube Music link) ---------- */
+  const oneSheet = j => {
+    const t = j.tracks[0]; if (!t) return;
+    const local = matchAll([t])[0];
+    let id = local;
+    if (!id) {
+      const key = 'single:' + sidOf(t), all = ls();
+      all[key] = { pl: null, name: j.name, type: j.type, url: j.url, cover: j.cover || '', at: Date.now(), total: 1, tracks: [{ t: t.t, a: t.a, d: t.d || 0, id: t.id || '', yt: t.yt || '' }], ids: [null] };
+      lsSet(all); id = reg(t, all[key]).id;
+    }
+    const s = byId(id);
+    mod(`<div class="spin"><h3>Song</h3><div class="spone"><img src="${esc(local ? cover(s) : (j.cover || s.art))}" alt=""><div><b>${esc(s.title)}</b><span>${esc(s.artist)}</span>${local ? '<small class="ph">on your phone</small>' : STAG}</div></div>
+<div class="mrow"><button class="btn" data-a="mx">Cancel</button><button class="btn tonal" data-a="sponeadd" data-id="${esc(id)}">Add to playlist</button><button class="btn pri" data-a="sponeplay" data-id="${esc(id)}">${mi('play_arrow', 1)}Play now</button></div></div>`);
+  };
   /* ---------- screens ---------- */
-  const sheet = (mode, val, err) => mod(`<div class="spin"><h3>Import from Spotify</h3>
-<p class="sph">${mode === 'paste' ? 'Paste one song per line, like <b>Song - Artist</b>.' : 'Paste a Spotify playlist or album link. Nortest builds the same playlist out of songs already on your phone.'}</p>
+  const sheet = (mode, val, err) => mod(`<div class="spin"><h3>Paste a playlist or song</h3>
+<p class="sph">${mode === 'paste' ? 'Paste one song per line, like <b>Song - Artist</b>.' : 'Paste a Spotify playlist, album or song, or a YouTube song. Songs on your phone play from your phone, the rest stream.'}</p>
 ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type="text" placeholder="Playlist name" value="${esc((val && val.name) || '')}"><label for="spt">Songs</label><textarea id="spt" placeholder="Blinding Lights - The Weeknd&#10;Levitating - Dua Lipa">${esc((val && val.text) || '')}</textarea>`
-      : `<label for="spu">Playlist link</label><input id="spu" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/..." value="${esc(val || '')}">`}
+      : `<label for="spu">Playlist or song link</label><input id="spu" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/..." value="${esc(val || '')}">${recentHTML()}`}
 <div class="sperr" role="status">${esc(err || '')}</div>
 <button class="spsw" data-a="spsw" data-m="${mode === 'paste' ? 'link' : 'paste'}">${mode === 'paste' ? 'Use a Spotify link instead' : 'No link? Paste a song list instead'}</button>
 <div class="mrow"><button class="btn" data-a="mx">Cancel</button><button class="btn pri" data-a="${mode === 'paste' ? 'sppaste' : 'spgo'}">${mode === 'paste' ? 'Match songs' : 'Import'}</button></div></div>`);
@@ -249,7 +282,7 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
       const i = h.indexOf('</div></div></div>');
       return i >= 0 ? h.slice(0, i + 18) + x.chips + h.slice(i + 18) : x.chips + h;
     }
-    return h.replace(/(<div class="card new" data-a="pnew">[\s\S]*?<b>New playlist<\/b><span>&nbsp;<\/span><\/div>)/, `$1<div class="card new spnew" data-a="spopen"><div class="plus">${mi('sp_import')}</div><b>Import from Spotify</b><span>Match to your songs</span></div>`);
+    return h.replace(/(<div class="card new" data-a="pnew">[\s\S]*?<b>New playlist<\/b><span>&nbsp;<\/span><\/div>)/, `$1<div class="card new spnew" data-a="spopen"><div class="plus">${mi('sp_import')}</div><b>Import from Spotify</b><span>or a YouTube song</span></div>`);
   };
 
   const busy = (b, on, label) => { if (!b) return; if (on) { b.dataset.l = b.innerHTML; b.disabled = true; b.textContent = label; } else { b.disabled = false; if (b.dataset.l) b.innerHTML = b.dataset.l; } };
@@ -275,10 +308,12 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
     spsw: b => sheet(b.dataset.m === 'paste' ? 'paste' : 'link'),
     spgo: async b => {
       const v = ($('#spu') || {}).value || '';
-      if (!v.trim()) return errIn('Paste a Spotify link first.');
+      if (!v.trim()) return errIn('Paste a link first.');
       busy(b, true, 'Reading playlist...'); errIn('');
       try {
         const j = await fetchList(v.trim());
+        addRecent(j, v.trim());
+        if (j.type === 'track' || j.type === 'yt') return oneSheet(j);
         busy(b, true, 'Matching songs...');
         await new Promise(r => setTimeout(r, 30));
         const tracks = j.tracks || [];
@@ -320,6 +355,29 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
         await saveImport({ key: k, name: j.name, type: j.type, url: j.url, cover: j.cover, tracks, ids, total: j.total, capped: j.capped, src: e.src });
         done(ids, tracks.length);
       } catch (x) { busy(b, false); toast(x.message || 'Could not update'); }
+    },
+    sprecent: b => { const i = $('#spu'); if (i) { i.value = b.dataset.u; A.spgo(document.querySelector('[data-a="spgo"]')); } },
+    sprclr: () => { try { localStorage.removeItem(LSR); } catch (e) { } const r = document.querySelector('#mb .sprec'); if (r) r.remove(); },
+    sponeplay: (b, id) => { id = b.dataset.id; closeMod(); if (!queue.length || qi < 0) return playList([id]); queue.splice(qi + 1, 0, id); load(qi + 1); },
+    sponeadd: (b) => A.topl(b, b.dataset.id),
+    spver: async (b, id) => {
+      id = b.dataset.id || id; const s = REG.get(id); $('#menu').classList.add('hid'); if (!s) return;
+      mod(`<div class="spin"><h3>Wrong song?</h3><p class="sph">Pick the right version of <b>${esc(s.title)}</b>. Nortest remembers your pick.</p><div class="mlist spver"><p class="sph">Looking on YouTube...</p></div><div class="mrow"><button class="btn" data-a="mx">Cancel</button></div></div>`);
+      try {
+        const r = await fetch(YTAPI + new URLSearchParams({ t: s.title, a: s.artist === 'Unknown Artist' ? '' : s.artist, d: String(s.dur || 0), n: '1' }));
+        const j = await r.json(); const v = (j && j.videos) || [];
+        const cur0 = (YTC[id] || [])[0];
+        const box = document.querySelector('#mb .spver'); if (!box) return;
+        box.innerHTML = v.length ? v.map(x => `<button class="btn wide ${x.id === cur0 ? 'pri' : ''}" data-a="spuse" data-v="${esc(x.id)}" data-id="${esc(id)}"><img src="https://i.ytimg.com/vi/${esc(x.id)}/mqdefault.jpg" alt=""><span>${esc(x.title)}<small>${esc(x.owner || '')}${x.len ? ' · ' + fmt(x.len) : ''}</small></span></button>`).join('') : '<p class="sph">No other versions found.</p>';
+      } catch (e) { const box = document.querySelector('#mb .spver'); if (box) box.innerHTML = '<p class="sph">Can\'t reach YouTube right now.</p>'; }
+    },
+    spuse: b => {
+      const id = b.dataset.id, vid = b.dataset.v, s = REG.get(id); if (!s) return;
+      YTC[id] = [vid, ...(YTC[id] || []).filter(x => x !== vid)]; ytSave();
+      s.art = 'https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg';
+      closeMod(); toast('Got it. That version plays from now on');
+      if (live() && cur.id === id) { SM.cand = YTC[id]; SM.ci = 0; if (window.YT && YT.Player) ytLoad(vid, true, SM.tok); else sPlay(cur, true); }
+      else render();
     },
     spopenx: b => { const s = REG.get(b.dataset.id); $('#menu').classList.add('hid'); if (s) window.open(b.dataset.w === 'yt' ? ytURL({ t: s.title, a: s.artist === 'Unknown Artist' ? '' : s.artist }) : spURL({ t: s.title, a: s.artist, id: s.spid }), '_blank', 'noopener'); }
   });
@@ -380,7 +438,11 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
       paint();
     }, 500);
   };
-  const setPlaying = p => { if (SM.playing === p) return; SM.playing = p; pi(); };
+  /* keep the screen on while a streaming song plays: the embedded player stops when the phone locks */
+  let wl = null;
+  const wake = on => { try { if (on && !wl && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wl = l; l.addEventListener('release', () => { wl = null; }); }).catch(() => { }); else if (!on && wl) { wl.release().catch(() => { }); wl = null; } } catch (e) { } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && live() && SM.playing) wake(true); });
+  const setPlaying = p => { wake(p && live()); if (SM.playing === p) return; SM.playing = p; pi(); };
   const quietAu = () => {
     try { _origPause.call(au); } catch (e) { }
     if (au.getAttribute('src')) { const old = url; au.removeAttribute('src'); try { au.load(); } catch (e) { } if (old && old.startsWith('blob:')) URL.revokeObjectURL(old); url = ''; }
@@ -492,7 +554,7 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
     SM.tok++; SM.on = false; SM.playing = false; SM.loaded = ''; SM.s = null;
     clearInterval(SM.poll); clearTimeout(SM.hint);
     try { SM.yt && SM.yt.pauseVideo(); } catch (e) { } try { SM.spc && SM.spc.pause(); } catch (e) { }
-    document.body.classList.remove('sp-on'); showHint(false);
+    document.body.classList.remove('sp-on'); showHint(false); wake(false);
     msHandlers(false);
   };
   const ended = () => {
@@ -552,7 +614,7 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
     const it = [['Play next', 'qnext', 'play_next'], ['Add to queue', 'qadd', 'queue_music'], ...(queue.includes(id) ? [['Remove from queue', 'qrmid', 'playlist_remove']] : []), ['Add to playlist', 'topl', 'playlist_add'],
     ...(view === 'playlists' && sub ? [['Remove from this playlist', 'prm', 'playlist_remove']] : [])];
     m.innerHTML = `<div class="mh"><img src="${esc(s.art)}" alt=""><div><b>${esc(s.title)}</b><span>${esc(s.artist)}</span></div></div>` + it.map(([t, a, ico]) => `<button data-a="${a}" data-id="${esc(id)}" class="mx-${a}">${mi(ico)}<span>${t}</span></button>`).join('') +
-      `<button data-a="spopenx" data-w="sp" data-id="${esc(id)}">${mi('sp_out')}<span>Open in Spotify</span></button><button data-a="spopenx" data-w="yt" data-id="${esc(id)}">${mi('sp_out')}<span>Find on YouTube</span></button>`;
+      `<button data-a="spver" data-id="${esc(id)}">${mi('sp_refresh')}<span>Wrong song? Pick another</span></button><button data-a="spopenx" data-w="sp" data-id="${esc(id)}">${mi('sp_out')}<span>Open in Spotify</span></button><button data-a="spopenx" data-w="yt" data-id="${esc(id)}">${mi('sp_out')}<span>Find on YouTube</span></button>`;
     m.classList.remove('hid');
     m.style.top = Math.max(8, Math.min(rc.bottom, innerHeight - m.offsetHeight - 8)) + 'px';
     m.style.left = Math.max(8, Math.min(rc.right - m.offsetWidth, innerWidth - m.offsetWidth - 8)) + 'px';
