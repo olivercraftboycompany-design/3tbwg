@@ -158,7 +158,7 @@ const recent = () => {
   if (ids.length < 2) return '';
   return `<section class="rsec"><h2 class="st">Recently played</h2><div class="cs">${ids.map((id, i) => { const s = byId(id); return `<div class="cs-item ${i === 0 ? 'hero' : ''}" data-a="rplay" data-id="${id}"><img src="${cover(s)}" alt="" loading="lazy"><div class="cs-t"><b>${esc(s.title)}</b><span>${esc(s.artist)}</span></div></div>`; }).join('')}</div></section>`;
 };
-const TITLES = { library: 'Library', favorites: 'Favorites', albums: 'Albums', artists: 'Artists', queue: 'Queue', playlists: 'Playlists', history: 'History' };
+const TITLES = { library: 'Library', favorites: 'Favorites', albums: 'Albums', artists: 'Artists', queue: 'Queue', playlists: 'Playlists', history: 'History', radio: 'Radio' };
 function render() {
   const navV = view === 'artists' || view === 'history' ? 'library' : view;
   document.querySelectorAll('#nav button').forEach(b => { const on = b.dataset.v === navV; b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
@@ -173,6 +173,7 @@ function render() {
   else if (view === 'history') h = (hist.length ? `<div class="chips"><button class="chip" data-a="hclr">Clear history</button></div>` : '') + list(hist.filter(byId), 'Nothing played yet.');
   else if (view === 'queue') h = qHTML();
   else if (view === 'playlists') h = pHTML();
+  else if (view === 'radio') h = window.radioHTML ? radioHTML() : '';
   else h = groups(view);
   const backLib = !sub && (view === 'artists' || view === 'history') ? `<div class="dhead"><button class="ib" data-a="nav" data-v="library" aria-label="Back to Library">${mi('keyboard_arrow_down')}</button></div>` : '';
   $('#view').innerHTML = backLib + (sub ? '' : `<h1 class="pt">${TITLES[view] || view}</h1>`) + h;
@@ -387,7 +388,7 @@ async function settings() {
   let devs = [];
   try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput'); } catch (e) { }
   const p = $('#setp'), wasOpen = !p.classList.contains('hid'), y = wasOpen ? p.scrollTop : 0;
-  const ver = NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '';
+  const ver = (NN && NN.appVersion ? (() => { try { return NN.appVersion(); } catch (e) { return ''; } })() : '') || '1.6.3';
   const rs = window.tabRemote ? tabRemote.state() : 'off';
   const hidden = NN ? dev.filter(x => x.hidden) : [];
   p.innerHTML = `<header class="sh"><button class="ib" data-a="setx" aria-label="Back"><span class="rot90">${mi('keyboard_arrow_down')}</span></button><h1>Settings</h1></header>
@@ -923,7 +924,7 @@ const NUM = { xf: v => v ? v + ' s' : 'Off', minLen: v => v ? 'Under ' + v + ' s
 
 /* ---------- Init ---------- */
 (async () => {
-  const NAVI = {"library": "library_music", "favorites": "favorite", "albums": "album", "playlists": "playlist_play", "queue": "queue_music"};
+  const NAVI = {"library": "library_music", "favorites": "favorite", "albums": "album", "playlists": "playlist_play", "radio": "radio", "queue": "queue_music"};
   $('#nav').innerHTML = Object.keys(NAVI).map(v => `<button data-a="nav" data-v="${v}"><span class="ind">${mi(NAVI[v])}${mi(NAVI[v], 1)}</span><span class="lb">${TITLES[v]}</span></button>`).join('');
   $('#mp').innerHTML = $('#bp').innerHTML = ic('prev');
   $('#mn').innerHTML = $('#bn').innerHTML = ic('next');
