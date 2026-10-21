@@ -1,5 +1,5 @@
 /* nortest service worker — bump VERSION when you change files so phones get the update */
-const VERSION = 'nortest-v16';
+const VERSION = 'nortest-v17';
 const SHELL = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const SHELL = [
   './radio.js',
   './spotify.js',
   './extras.js',
+  './freemusic.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
