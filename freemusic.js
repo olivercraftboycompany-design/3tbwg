@@ -114,7 +114,12 @@
   const secs = v => { if (v == null) return 0; const s = String(v); if (s.includes(':')) return s.split(':').reduce((a, x) => a * 60 + (+x || 0), 0); return Math.round(+s || 0); };
   const first = v => Array.isArray(v) ? v[0] : v;
   const prettyName = n => n.replace(/^.*\//, '').replace(/\.mp3$/i, '').replace(/_/g, ' ').replace(/^\s*\d{1,3}\s*[-.)]?\s*/, '').replace(/\s+/g, ' ').trim();
-  const cleanT = t => { const x = t.replace(/^\s*(\d{1,3}\s*[-.)_]\s*)+/, '').replace(/^\d{1,2}\s+(?=\D)/, '').trim(); return x || t; };
+  const cleanT = t => {
+    let x = String(t).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    const m = x.match(/^.{1,60}? - \d{1,3} - (.+)$/); if (m) x = m[1];      /* "Artist - 01 - Song" */
+    x = x.replace(/^\s*(\d{1,3}\s*[-.)]\s*)+/, '').replace(/^\d{1,2}\s+(?=\D)/, '').trim();
+    return x || String(t);
+  };
   async function itemTracks(doc) {
     if (F.items[doc.identifier]) return F.items[doc.identifier];
     const j = await getJSON(`${IA}/metadata/${encodeURIComponent(doc.identifier)}`, 15000);
