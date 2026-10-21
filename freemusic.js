@@ -1,4 +1,4 @@
-/* nortest 1.6.6 - Free music: songs artists give away on purpose (Creative Commons / public domain), from the
+/* nortest 1.6.6 (b) - Free music: songs artists give away on purpose (Creative Commons / public domain), from the
    Internet Archive's netlabel and live-music collections. Search, stream and DOWNLOAD them for offline play.
    Only items whose license allows sharing are listed; the license shows on every song.
    Streams play in the normal player (au) with CORS, so the equalizer, lock screen and remote work as usual.
@@ -8,7 +8,19 @@
   'use strict';
   const IA = 'https://archive.org';
   const LIC = 'licenseurl:(*creativecommons.org* OR *publicdomain*)';
-  const BASE = `((collection:netlabels AND mediatype:audio) OR collection:etree) AND ${LIC}`;
+  /* 1.6.6b: music only. Netlabel releases everywhere; the etree live-concert archive only under "Live shows".
+     No spoken word / audiobooks / podcasts / radio shows / lectures; browse lists also skip holiday-only,
+     kids, explicit and noise releases, and rank by downloads in the last month rather than all-time. */
+  const NOTALK = 'NOT collection:(librivoxaudio OR audio_bookspoetry OR podcasts OR audio_podcast OR radioprograms OR oldtimeradio OR audio_religion OR audio_news OR spokenword OR etree)' +
+    ' AND NOT subject:(spoken OR "spoken word" OR audiobook OR audiobooks OR podcast OR lecture OR lectures OR poetry OR reading OR readings OR "radio show" OR interview OR sermon OR speech OR "field recording" OR "field recordings" OR "sound effects" OR samples OR "sample pack" OR stems OR ringtones OR "cover art")' +
+    ' AND NOT title:(podcast OR episode OR lecture OR audiobook OR reading OR stems OR samples OR "sample pack" OR ringtone OR ringtones OR "cover art" OR "in a day" OR "in one day")';
+  const BASE = `collection:netlabels AND mediatype:audio AND ${LIC} AND ${NOTALK}`;
+  const LIVE = `collection:etree AND mediatype:etree AND ${LIC}`;
+  const TIDY = 'NOT title:(christmas OR xmas OR "x-mas" OR halloween OR porn OR fuck OR masturbation OR sex OR sexy OR nazi)' +
+    ' AND NOT subject:(christmas OR xmas OR "x-mas" OR holiday OR children OR kids OR "children\'s music" OR porn OR porngrind OR "porn groove" OR goregrind OR grindcore OR grind OR noise OR "harsh noise" OR lolicore OR generative OR "free improv")';
+  const TALK_T = /\b(reading|chapter|interview|lecture|podcast|episode|audiobook|sermon|spoken word)\b/i;
+  const SKIP_T = /^(intro|outro|interlude|skit|untitled|track ?\d*)\b|\b(19|20)\d{2}[ ._-]\d{1,2}[ ._-]\d{1,2}\b/i;   /* browse only: album openers and raw recording names */
+  const HOLI_T = /\b(christmas|x-?mas|santa|jingle bells?|silent night|navidad|weihnacht\w*)\b/i;
   const GENRES = [
     ['pop', 'Popular', ''],
     ['hiphop', 'Hip hop', 'subject:(hip hop OR hiphop OR rap OR "hip-hop" OR beats)'],
@@ -18,7 +30,7 @@
     ['chill', 'Chill', 'subject:(ambient OR chillout OR downtempo OR chill)'],
     ['jazz', 'Jazz', 'subject:(jazz OR swing OR "nu jazz" OR soul OR funk)'],
     ['indie', 'Indie pop', 'subject:(pop OR "indie pop" OR synthpop OR indie)'],
-    ['live', 'Live shows', 'collection:etree']
+    ['live', 'Live shows', '']
   ];
   const LSI = 'nortest_free_index', LSM = 'nortest_free_mode';
   const SVG_DL = '<path d="M12 4v10.6M7.6 10.4L12 14.8l4.4-4.4"/><path d="M4.8 13.4v4a2.8 2.8 0 0 0 2.8 2.8h8.8a2.8 2.8 0 0 0 2.8-2.8v-4"/>';
@@ -104,21 +116,44 @@
   async function searchItems(g, q, page) {
     const gen = (GENRES.find(x => x[0] === g) || GENRES[0])[2];
     const cq = cleanQ(q);
-    const query = [BASE, cq ? `(${cq})` : '', !cq && gen ? gen : ''].filter(Boolean).join(' AND ');
+    /* search: netlabel music by relevance-ish (all-time downloads); browse: the last month's downloads among releases people kept coming back to */
+    const query = cq ? `${BASE} AND (${cq})` : g === 'live' ? `${LIVE} AND downloads:[300 TO 100000000]` :
+      [BASE, TIDY, gen, g === 'pop' ? 'downloads:[40000 TO 100000000]' : 'downloads:[8000 TO 100000000]'].filter(Boolean).join(' AND ');
     const p = new URLSearchParams({ q: query, rows: cq ? '10' : '12', page: String(page), output: 'json' });
     ['identifier', 'title', 'creator', 'licenseurl'].forEach(f => p.append('fl[]', f));
-    p.append('sort[]', 'downloads desc');
+    p.append('sort[]', cq ? 'downloads desc' : 'month desc');
+    if (!cq) p.append('sort[]', 'downloads desc');
     const j = await getJSON(`${IA}/advancedsearch.php?${p}`);
     return (j && j.response && j.response.docs || []).filter(d => d.identifier && d.licenseurl);
   }
   const secs = v => { if (v == null) return 0; const s = String(v); if (s.includes(':')) return s.split(':').reduce((a, x) => a * 60 + (+x || 0), 0); return Math.round(+s || 0); };
   const first = v => Array.isArray(v) ? v[0] : v;
-  const prettyName = n => n.replace(/^.*\//, '').replace(/\.mp3$/i, '').replace(/_/g, ' ').replace(/^\s*\d{1,3}\s*[-.)]?\s*/, '').replace(/\s+/g, ' ').trim();
-  const cleanT = t => {
-    let x = String(t).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
-    const m = x.match(/^.{1,60}? - \d{1,3} - (.+)$/); if (m) x = m[1];      /* "Artist - 01 - Song" */
-    x = x.replace(/^\s*(\d{1,3}\s*[-.)]\s*)+/, '').replace(/^\d{1,2}\s+(?=\D)/, '').trim();
-    return x || String(t);
+  const prettyName = n => n.replace(/^.*\//, '').replace(/\.(mp3|ogg|flac|wav|m4a)$/i, '').replace(/_/g, ' ').replace(/^(\S*[a-z])([A-Z]\S*)$/, (w) => w.replace(/([a-z])([A-Z])/g, '$1 $2')).replace(/^\s*\d{1,3}\s*[-.)]?\s*/, '').replace(/\s+/g, ' ').trim();
+  const alnum = c => /[\p{L}\p{N}]/u.test(c);
+  /* "Artist - Song" / "Artist-Song" -> "Song" when the prefix is this song's artist (punctuation-insensitive) */
+  const dropArtist = (x, a) => {
+    const an = String(a || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    if (an.length < 2 || /^(various|unknown)/.test(an)) return x;
+    let i = 0, k = 0;
+    while (i < x.length && k < an.length) { const c = x[i].toLowerCase(); if (alnum(c)) { if (c !== an[k]) return x; k++; } i++; }
+    if (k < an.length) return x;
+    while (i < x.length && /[.\s]/.test(x[i])) i++;
+    const m = x.slice(i).match(/^\s*[-–—:|]\s*(.+)$/);
+    return m && m[1].trim() ? m[1] : x;
+  };
+  const cleanT = (t, artist) => {
+    const orig = String(t || '').trim();
+    let x = orig.replace(/\.(mp3|ogg|flac|wav|m4a)$/i, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    x = x.replace(/[\[({]\s*[A-Za-z]{1,10}[\s.-]?\d{2,5}[a-z]?\s*[\])}]/g, ' ').replace(/\s+/g, ' ').trim();   /* [BadPanda018], (ca200) */
+    x = x.replace(/^\s*(19|20)\d{2}(?:[-._]\d{1,2}){1,2}\s*[-._ ]\s*/, '');                                  /* 2011-01- , 2014-02-12  */
+    const m = x.match(/^.{1,60}? - \d{1,3} - (.+)$/); if (m) x = m[1];                                         /* "Artist - 01 - Song" */
+    x = x.replace(/^\s*(\d{1,3}\s*[-.)]\s*)+/, '').replace(/^\d{1,2}\s+(?=\D)/, '').trim();                    /* 01. , 01 - , 01  */
+    x = x.replace(/^[A-Z]{2,8}\d{2,4}[a-z]?\s*[-–]\s*/, '');                                                 /* NS050- , LPF12- */
+    x = dropArtist(x, artist);
+    x = x.replace(/^\s*(\d{1,3}\s*[-.)]\s*)+/, '');
+    x = x.replace(/\s+/g, ' ').replace(/^[\s\-–—.:|]+|[\s\-–—:|]+$/g, '').trim();
+    if (/^[a-z]/.test(x) && x === x.toLowerCase() && x.length < 60) x = x[0].toUpperCase() + x.slice(1);
+    return x && /[\p{L}\p{N}]/u.test(x) ? x : orig;
   };
   async function itemTracks(doc) {
     if (F.items[doc.identifier]) return F.items[doc.identifier];
@@ -133,7 +168,7 @@
     const who = String(first(md.creator) || first(doc.creator) || '').trim();
     const out = fs.map(f => ({
       id: 'fm:' + doc.identifier + '/' + f.name, ident: doc.identifier, file: f.name,
-      title: cleanT(String(f.title || prettyName(f.name)).trim() || prettyName(f.name)), artist: String(f.artist || f.creator || who || 'Unknown artist').trim(),
+      title: cleanT(String(f.title || prettyName(f.name)).trim() || prettyName(f.name), f.artist || f.creator || who), artist: String(f.artist || f.creator || who || 'Unknown artist').trim(),
       album, dur: secs(f.length), size: +f.size || 0, lic, trk: parseInt(String(f.track || '').split('/')[0], 10) || 0
     })).filter(t => !t.dur || (t.dur >= 40 && t.dur <= 1500));
     out.sort((a, b) => (a.trk || 999) - (b.trk || 999) || a.file.localeCompare(b.file));
@@ -143,7 +178,8 @@
   async function fetchPage(g, q, page) {
     const docs = await searchItems(g, q, page);
     const per = q ? 6 : 3;
-    const lists = await Promise.all(docs.map(d => itemTracks(d).catch(() => [])));
+    const lists = (await Promise.all(docs.map(d => itemTracks(d).catch(() => []))))
+      .map(l => l.filter(t => !TALK_T.test(t.title) && (q || (!HOLI_T.test(t.title + ' ' + t.album) && !SKIP_T.test(t.title)))));
     const out = [];
     for (let r = 0; r < per; r++) lists.forEach(l => { if (l[r]) out.push(mk(l[r])); });
     return { songs: out, more: docs.length >= (q ? 10 : 12) };
