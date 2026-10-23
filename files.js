@@ -7,6 +7,9 @@
   'use strict';
   if (window.__ntfilesLoaded) return; window.__ntfilesLoaded = 1;
   let picked = [], busy = false;
+  const toastMsg = m => { try { if (window.NN && NN.toast) { NN.toastMsg(m); return; } } catch (e) { }
+    try { let t = document.querySelector('.toast.b1t'); if (!t) { t = document.createElement('div'); t.className = 'toast b1t'; document.body.appendChild(t); } t.textContent = m; t.classList.add('show'); clearTimeout(toastMsg.t); toastMsg.t = setTimeout(() => t.classList.remove('show'), 2600); } catch (e) { } };
+
   const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/gi, ' ').trim();
   const MIME = { m4a: 'audio/mp4', mp4: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wave', flac: 'audio/flac', aac: 'audio/aac', webm: 'audio/webm' };
@@ -16,7 +19,7 @@
   const probe = blob => new Promise(res => { const a = new Audio(); a.muted = true; a.preload = 'metadata'; const u = URL.createObjectURL(blob); let done = false; const end = v => { if (done) return; done = true; a.removeAttribute('src'); try { a.load(); } catch (e) { } URL.revokeObjectURL(u); res(v); }; const to = setTimeout(() => end(0), 6000); a.onloadedmetadata = () => { clearTimeout(to); end(isFinite(a.duration) ? a.duration : 0); }; a.onerror = () => { clearTimeout(to); end(0); }; a.src = u; });
 
   function pick() {
-    if (busy) { toast('Still adding your last songs…'); return; }
+    if (busy) { toastMsg('Still adding your last songs…'); return; }
     const i = document.createElement('input');
     i.type = 'file'; i.accept = 'audio/*'; i.multiple = true;
     i.onchange = () => { const fl = [...(i.files || [])].filter(f => f && f.size > 0); if (fl.length) { picked = fl; openSheet(); } };
@@ -70,7 +73,7 @@
     let added = 0, already = 0; const bad = [];
     for (let i = 0; i < fl.length; i++) {
       try { const s = await makeSong(fl[i]); if (pl.songs.includes(s.id)) already++; else { pl.songs.push(s.id); added++; } }
-      catch (e) { bad.push(fl[i].name); if (e && e.name === 'QuotaExceededError') { toast('Your phone is out of space for more songs'); break; } }
+      catch (e) { bad.push(fl[i].name); if (e && e.name === 'QuotaExceededError') { toastMsg('Your phone is out of space for more songs'); break; } }
     }
     try { await put('playlists', pl); } catch (e) { }
     busy = false; render();
@@ -78,7 +81,7 @@
     if (added) parts.push(`Added ${added} song${added === 1 ? '' : 's'} to “${pl.name}”`);
     if (already) parts.push(`${already} ${already === 1 ? 'was' : 'were'} already there`);
     if (bad.length) parts.push(`${bad.length} couldn't be added (${bad.slice(0, 2).join(', ')}${bad.length > 2 ? '…' : ''})`);
-    toast(parts.join('. ') || 'Nothing added');
+    toastMsg(parts.join('. ') || 'Nothing added');
   };
 
   window.NTFILES = { pick };
