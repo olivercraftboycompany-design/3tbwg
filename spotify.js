@@ -385,6 +385,9 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
   /* ================= streaming player (YouTube embed, Spotify embed as fallback) ================= */
   const SM = { on: false, s: null, yt: null, ytP: null, spP: null, spc: null, el: null, playing: false, cand: [], ci: 0, tok: 0, t: 0, d: 0, mode: '', poll: 0, hint: 0, bad: 0, badAt: 0, spWas: false, loaded: '' };
   const live = () => SM.on && cur && cur.stream;
+  window.spNow = () => SM.on && cur && cur.stream ? { id: cur.id, title: cur.title, artist: cur.artist, pos: SM.t || 0, dur: SM.d || 0, playing: !!SM.playing } : null;
+  window.spCtl = { play: p => { try { p ? sResume() : sPause(); } catch (e) { } }, seek: t => { try { sSeek(t); } catch (e) { } } };
+  window.spSheet = (mode, u) => sheet(mode, u);
   const _origPause = HTMLMediaElement.prototype.pause;
   const ytSave = () => { const k = Object.keys(YTC); if (k.length > 3000) k.slice(0, k.length - 3000).forEach(x => delete YTC[x]); try { localStorage.setItem(YTK, JSON.stringify(YTC)); } catch (e) { } };
   const ensureEl = () => {
@@ -558,6 +561,7 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
     msHandlers(false);
   };
   const ended = () => {
+    if (window.JAM && JAM.next(true)) return;
     if (S.rep === 2) { sSeek(0); sResume(); }
     else if (S.rep !== 1 && !S.shuf && qi === queue.length - 1) { setPlaying(false); }
     else next();
@@ -568,6 +572,21 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
   load = function (i, play = true) {
     const s = byId(queue[i]);
     if (!s || !s.stream) { if (SM.on) sStop(); return _load.apply(this, arguments); }
+    if (window.DL && DL.has(s.id)) {
+      try { if (window.nortestRadio) nortestRadio.remote('stop radio'); } catch (e) { }
+      if (cur && cur.id !== s.id) {
+        if (nav === 'back') fwd.push(cur.id);
+        else { back.push(cur.id); if (back.length > 200) back.shift(); if (nav !== 'fwd') fwd.length = 0; }
+      }
+      qi = i; cur = s;
+      if (SM.on) sStop();
+      quietAu();
+      if (play) { hist = [s.id, ...hist.filter(x => x !== s.id)].slice(0, 100); save('hist', hist); }
+      ui();
+      DL.playLocal(s, play).then(ok => { if (!ok) load(i, play); });
+      return;
+    }
+    if (window.DL && !DL.online()) return DL.skipOffline(i, play);
     try { if (window.nortestRadio) nortestRadio.remote('stop radio'); } catch (e) { }
     if (cur && cur.id !== s.id) {
       if (nav === 'back') fwd.push(cur.id);
@@ -612,7 +631,8 @@ ${mode === 'paste' ? `<label for="spn">Playlist name</label><input id="spn" type
     const s = byId(id); if (!s) return;
     const rc = b.getBoundingClientRect(), m = $('#menu');
     const it = [['Play next', 'qnext', 'play_next'], ['Add to queue', 'qadd', 'queue_music'], ...(queue.includes(id) ? [['Remove from queue', 'qrmid', 'playlist_remove']] : []), ['Add to playlist', 'topl', 'playlist_add'],
-    ...(view === 'playlists' && sub ? [['Remove from this playlist', 'prm', 'playlist_remove']] : [])];
+    ...(view === 'playlists' && sub ? [['Remove from this playlist', 'prm', 'playlist_remove']] : []),
+    ...(window.DL ? DL.menuItems(id) : [])];
     m.innerHTML = `<div class="mh"><img src="${esc(s.art)}" alt=""><div><b>${esc(s.title)}</b><span>${esc(s.artist)}</span></div></div>` + it.map(([t, a, ico]) => `<button data-a="${a}" data-id="${esc(id)}" class="mx-${a}">${mi(ico)}<span>${t}</span></button>`).join('') +
       `<button data-a="spver" data-id="${esc(id)}">${mi('sp_refresh')}<span>Wrong song? Pick another</span></button><button data-a="spopenx" data-w="sp" data-id="${esc(id)}">${mi('sp_out')}<span>Open in Spotify</span></button><button data-a="spopenx" data-w="yt" data-id="${esc(id)}">${mi('sp_out')}<span>Find on YouTube</span></button>`;
     m.classList.remove('hid');
